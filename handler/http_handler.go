@@ -73,10 +73,6 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) erro
 		// Prepare record for insertion
 		record := &SimpleService{}
 
-		// Map all keys from payload to record fields if applicable
-		// For simplicity, store the entire JSON as a JSON string in a 'data' column
-		// We add a 'data' field to SimpleService struct for this purpose
-
 		// Marshal payload to JSON string
 		dataBytes, err := json.Marshal(payload)
 		if err != nil {
