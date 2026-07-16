@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	mysql "trpc.group/trpc-go/trpc-database/mysql"
@@ -20,28 +19,24 @@ func NewMySQLHandler() *MySQLHandler {
 	}
 }
 
-// SimpleService represents the data structure stored in MySQL.
+// SimpleService represents a record in the simple_service table.
 type SimpleService struct {
-	ID   int64                  `db:"id" json:"id"`
-	Data map[string]interface{} `db:"data" json:"data"`
+	ID      int64  `db:"id" json:"id"`
+	JsonData string `db:"json_data" json:"json_data"`
 }
 
-// InsertSimpleService writes one simpleService record using parameterized values.
+// InsertSimpleService writes one simple_service record using parameterized values.
 func (h *MySQLHandler) InsertSimpleService(ctx context.Context, record *SimpleService) (int64, error) {
-	dataJSON, err := json.Marshal(record.Data)
-	if err != nil {
-		return 0, fmt.Errorf("marshal data: %w", err)
-	}
 	result, err := h.client.Exec(ctx,
-		"INSERT INTO simple_service (data) VALUES (?)",
-		dataJSON,
+		"INSERT INTO simple_service (json_data) VALUES (?)",
+		record.JsonData,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("insert simpleService: %w", err)
+		return 0, fmt.Errorf("insert simple_service: %w", err)
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("read inserted simpleService id: %w", err)
+		return 0, fmt.Errorf("read inserted simple_service id: %w", err)
 	}
 	return id, nil
 }
@@ -50,7 +45,7 @@ func (h *MySQLHandler) InsertSimpleService(ctx context.Context, record *SimpleSe
 // for all external values supplied through args.
 func (h *MySQLHandler) QuerySimpleService(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	if err := h.client.QueryToStructs(ctx, dest, query, args...); err != nil {
-		return fmt.Errorf("query simpleService: %w", err)
+		return fmt.Errorf("query simple_service: %w", err)
 	}
 	return nil
 }
@@ -68,11 +63,11 @@ func (h *MySQLHandler) DeleteSimpleService(ctx context.Context, query string, ar
 func (h *MySQLHandler) executeSimpleService(ctx context.Context, operation, query string, args ...interface{}) (int64, error) {
 	result, err := h.client.Exec(ctx, query, args...)
 	if err != nil {
-		return 0, fmt.Errorf("%s simpleService: %w", operation, err)
+		return 0, fmt.Errorf("%s simple_service: %w", operation, err)
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf("read affected simpleService rows: %w", err)
+		return 0, fmt.Errorf("read affected simple_service rows: %w", err)
 	}
 	return rows, nil
 }

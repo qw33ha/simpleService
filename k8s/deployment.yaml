@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: simpleService
+  name: simple-service
   namespace: nl2service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: simpleService
+      app: simple-service
   template:
     metadata:
       labels:
-        app: simpleService
+        app: simple-service
     spec:
       containers:
-        - name: simpleService
+        - name: simple-service
           image: ghcr.io/qw33ha/simpleService:latest
           ports:
             - containerPort: 8080
@@ -28,17 +28,22 @@ spec:
             - name: KAFKA_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: no-secret
+                  name: kafka-credentials
                   key: KAFKA_USERNAME
             - name: KAFKA_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: no-secret
+                  name: kafka-credentials
                   key: KAFKA_PASSWORD
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: MYSQL_USER
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: no-secret
+                  name: mysql-credentials
                   key: MYSQL_PASSWORD
           readinessProbe:
             httpGet:

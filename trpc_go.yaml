@@ -1,5 +1,5 @@
 service:
-  name: simpleService
+  name: simple-service
   module: github.com/qw33ha/simpleService
 
 global:
@@ -13,7 +13,7 @@ global:
 
 server:
   app: simpleService
-  server: simpleService
+  server: simple-service
   bin_path: /usr/local/trpc/bin/
   conf_path: /usr/local/trpc/conf/
   data_path: /usr/local/trpc/data/
@@ -35,7 +35,7 @@ server:
 client:
   service:
     - name: trpc.qw33ha.simpleService.mysql
-      target: dsn://${MYSQL_USER:-simpleService}:${NO_SECRET}@tcp(35.255.215.86:3306)/test?parseTime=true&interpolateParams=true
+      target: dsn://${MYSQL_USER:-simple_service}:${MYSQL_CREDENTIALS}@tcp(35.255.215.86:3306)/test?parseTime=true&interpolateParams=true
       timeout: 1000
     - name: trpc.kafka.producer.service
       target: kafka://kafka-producer-config

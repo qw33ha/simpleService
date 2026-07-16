@@ -21,7 +21,7 @@ func (*KafkaConsumer) Handle(_ context.Context, msg *sarama.ConsumerMessage) err
 		return err
 	}
 
-	// Log consumed message
+	// Log consumed Kafka message
 	log.Infof("consumed Kafka message topic=%s partition=%d offset=%d payload=%v", msg.Topic, msg.Partition, msg.Offset, payload)
 	return nil
 }

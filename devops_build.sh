@@ -2,4 +2,4 @@
 set -e
 
 go mod tidy
-go build -gcflags=all="-N -l" -o simpleService ./
+go build -gcflags=all="-N -l" -o simple-service ./

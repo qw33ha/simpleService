@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: simpleService
+  name: simple-service
   namespace: nl2service
 spec:
   type: ClusterIP
   selector:
-    app: simpleService
+    app: simple-service
   ports:
     - name: http
       port: 80

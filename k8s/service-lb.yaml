@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: simpleService-lb
+  name: simple-service-lb
   namespace: nl2service
 spec:
   type: LoadBalancer
   selector:
-    app: simpleService
+    app: simple-service
   ports:
     - name: http
       port: 80

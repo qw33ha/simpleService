@@ -35,7 +35,7 @@ func RegisterKafkaConfigFromEnv() error {
 	producer := trpckafka.GetDefaultConfig()
 	producer.Brokers = brokers
 	producer.Topic = topic
-	producer.ClientID = "simpleService-producer"
+	producer.ClientID = "simple-service-producer"
 	producer.Partitioner = sarama.NewHashPartitioner
 	producer.ScramClient = saslConfig(username, password)
 	trpckafka.RegisterAddrConfig(kafkaProducerAddress, producer)

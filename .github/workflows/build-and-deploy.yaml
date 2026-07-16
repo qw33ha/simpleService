@@ -28,8 +28,6 @@ jobs:
       - uses: actions/checkout@v6
       - name: Set lowercase container image
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA" >> "$GITHUB_ENV"
-      - name: Materialize Kafka CA certificate
-        run: printf '%s' "${{ secrets.KAFKA_CA_CERT }}" > ca.pem
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -48,15 +46,23 @@ jobs:
     env:
       IMAGE: ${{ needs.docker.outputs.image }}
       NAMESPACE: nl2service
-      APP_NAME: simpleService
+      APP_NAME: simple-service
     steps:
       - uses: actions/checkout@v6
       - uses: azure/setup-kubectl@v4
       - name: Write kubeconfig
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBE_CONFIG }}
         run: |
+          if [ -z "$KUBECONFIG_CONTENT" ]; then
+            echo "::error::Required GitHub Actions Secret KUBE_CONFIG is missing or empty."
+            exit 1
+          fi
           mkdir -p "$HOME/.kube"
-          printf '%s' "${{ secrets.KUBE_CONFIG }}" > "$HOME/.kube/config"
+          printf '%s' "$KUBECONFIG_CONTENT" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl config current-context
       - run: kubectl apply -f k8s/
       - run: kubectl set image deployment/$APP_NAME $APP_NAME=$IMAGE -n $NAMESPACE
       - run: kubectl rollout status deployment/$APP_NAME -n $NAMESPACE --timeout=180s
-      - run: kubectl get svc simpleService-lb -n $NAMESPACE -o wide
+      - run: kubectl get svc simple-service-lb -n $NAMESPACE -o wide
