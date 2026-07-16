@@ -13,11 +13,14 @@ import (
 // HTTPHandler handles HTTP requests and integrates Kafka and MySQL logic.
 type HTTPHandler struct {
 	producer *KafkaProducer
-	mysql   *MySQLHandler
+	mysql    *MySQLHandler
 }
 
-func NewHTTPHandler(producer *KafkaProducer, mysql *MySQLHandler) *HTTPHandler {
-	return &HTTPHandler{producer: producer, mysql: mysql}
+func NewHTTPHandler() *HTTPHandler {
+	return &HTTPHandler{
+		producer: NewKafkaProducer(),
+		mysql:    NewMySQLHandler(),
+	}
 }
 
 func (h *HTTPHandler) Register() {
@@ -25,7 +28,7 @@ func (h *HTTPHandler) Register() {
 	thttp.HandleFunc("/", h.HandleRequest)
 }
 
-// Health endpoint for readiness and liveness probes
+// Health returns 200 OK for health checks.
 func (h *HTTPHandler) Health(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -35,7 +38,7 @@ func (h *HTTPHandler) Health(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// HandleRequest processes POST JSON requests, sends to Kafka, and conditionally stores in MySQL
+// HandleRequest processes POST JSON requests, sends to Kafka, and conditionally stores in MySQL.
 func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -52,60 +55,48 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) erro
 		return nil
 	}
 
-	// Validate payload is not empty
-	if len(payload) == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "empty JSON body"})
-		return nil
-	}
-
 	// Send payload to Kafka
 	key := ""
-	if id, ok := payload["id"].(string); ok {
-		key = strings.TrimSpace(id)
+	if idVal, ok := payload["id"]; ok {
+		if idStr, ok := idVal.(string); ok {
+			key = strings.TrimSpace(idStr)
+		}
 	}
 	if err := h.producer.Send(r.Context(), key, payload); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to send to Kafka: " + err.Error()})
 		return nil
 	}
 
-	// If env == "prod", store in MySQL
-	if envVal, ok := payload["env"].(string); ok && strings.ToLower(envVal) == "prod" {
-		// Prepare record for insertion
-		record := &SimpleService{}
+	// If env=prod, store in MySQL
+	if envVal, ok := payload["env"]; ok {
+		if envStr, ok := envVal.(string); ok && strings.ToLower(envStr) == "prod" {
+			// Store the entire JSON as a JSON string in a column named 'data' (assuming schema)
+			jsonData, err := json.Marshal(payload)
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to marshal payload for DB"})
+				return nil
+			}
 
-		// Marshal payload to JSON string
-		dataBytes, err := json.Marshal(payload)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to marshal payload for DB"})
-			return nil
+			query := "INSERT INTO simple_service (data) VALUES (?)"
+			_, err = h.mysql.client.Exec(r.Context(), query, string(jsonData))
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to insert into DB: " + err.Error()})
+				return nil
+			}
 		}
-
-		// We assume SimpleService has a Data field for JSON storage
-		record.Data = string(dataBytes)
-
-		// Insert into DB
-		id, err := h.mysql.InsertSimpleService(r.Context(), record)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store in DB: " + err.Error()})
-			return nil
-		}
-
-		// Return inserted ID
-		writeJSON(w, http.StatusOK, map[string]interface{}{"message": "stored in DB", "id": id})
-		return nil
 	}
 
-	// Otherwise, just acknowledge
-	writeJSON(w, http.StatusAccepted, map[string]string{"message": "sent to Kafka"})
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "processed"})
 	return nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, body interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	if body != nil {
-		if err := json.NewEncoder(w).Encode(body); err != nil {
-			log.Errorf("writeJSON encode failed: %v", err)
-		}
+	if body == nil {
+		return
+	}
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		log.Errorf("writeJSON encode failed: %v", err)
 	}
 }
