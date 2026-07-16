@@ -16,10 +16,10 @@ type HTTPHandler struct {
 	mysql   *MySQLHandler
 }
 
-func NewHTTPHandler() *HTTPHandler {
+func NewHTTPHandler(producer *KafkaProducer, mysql *MySQLHandler) *HTTPHandler {
 	return &HTTPHandler{
-		producer: NewKafkaProducer(),
-		mysql:   NewMySQLHandler(),
+		producer: producer,
+		mysql:   mysql,
 	}
 }
 
