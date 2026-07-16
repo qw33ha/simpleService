@@ -8,7 +8,6 @@ import (
 	trpckafka "trpc.group/trpc-go/trpc-database/kafka"
 )
 
-// KafkaProducer publishes messages to Kafka.
 type KafkaProducer struct {
 	client trpckafka.Client
 }

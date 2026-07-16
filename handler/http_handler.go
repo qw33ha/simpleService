@@ -10,24 +10,25 @@ import (
 	thttp "trpc.group/trpc-go/trpc-go/http"
 )
 
-// HTTPHandler handles HTTP requests, producing Kafka messages and optionally storing in MySQL.
+// HTTPHandler handles HTTP requests and integrates Kafka and MySQL logic.
 type HTTPHandler struct {
-	mysqlHandler  *MySQLHandler
-	kafkaProducer *KafkaProducer
+	producer *KafkaProducer
+	mysql   *MySQLHandler
 }
 
-func NewHTTPHandler(mysqlHandler *MySQLHandler, kafkaProducer *KafkaProducer) *HTTPHandler {
+func NewHTTPHandler() *HTTPHandler {
 	return &HTTPHandler{
-		mysqlHandler:  mysqlHandler,
-		kafkaProducer: kafkaProducer,
+		producer: NewKafkaProducer(),
+		mysql:   NewMySQLHandler(),
 	}
 }
 
 func (h *HTTPHandler) Register() {
-	thttp.HandleFunc("/", h.HandleRoot)
 	thttp.HandleFunc("/is_healthy", h.Health)
+	thttp.HandleFunc("/", h.HandleRequest)
 }
 
+// Health endpoint for readiness and liveness probes
 func (h *HTTPHandler) Health(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -37,7 +38,8 @@ func (h *HTTPHandler) Health(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *HTTPHandler) HandleRoot(w http.ResponseWriter, r *http.Request) error {
+// HandleRequest processes POST JSON requests, sends to Kafka, and conditionally stores in MySQL
+func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
@@ -46,55 +48,69 @@ func (h *HTTPHandler) HandleRoot(w http.ResponseWriter, r *http.Request) error {
 
 	// Read and decode JSON body
 	var payload map[string]interface{}
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read request body"})
-		return nil
-	}
-	if err := json.Unmarshal(body, &payload); err != nil {
+	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20)) // limit 1MB
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
 		return nil
 	}
 
-	// Produce to Kafka
+	// Validate payload is not empty
+	if len(payload) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "empty JSON body"})
+		return nil
+	}
+
+	// Send payload to Kafka
 	key := ""
 	if id, ok := payload["id"].(string); ok {
 		key = strings.TrimSpace(id)
 	}
-	if err := h.kafkaProducer.Send(r.Context(), key, payload); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to publish to Kafka"})
+	if err := h.producer.Send(r.Context(), key, payload); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to send to Kafka: " + err.Error()})
 		return nil
 	}
 
-	// If env=prod, store in MySQL
+	// If env == "prod", store in MySQL
 	if envVal, ok := payload["env"].(string); ok && strings.ToLower(envVal) == "prod" {
-		// Insert into MySQL
-		// We store the whole JSON as a string in a table named simple_service with a json_data column
-		jsonData, err := json.Marshal(payload)
+		// Prepare record for insertion
+		record := &SimpleService{}
+
+		// Store the entire JSON as a string in a column named 'data' (assuming schema)
+		// If schema is different, adapt accordingly
+		// Here we marshal the payload back to JSON string
+		dataBytes, err := json.Marshal(payload)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to marshal JSON for DB"})
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to marshal payload for DB"})
 			return nil
 		}
-		record := &SimpleService{
-			JsonData: string(jsonData),
-		}
-		_, err = h.mysqlHandler.InsertSimpleService(r.Context(), record)
+
+		// We assume SimpleService has a Data field for JSON string
+		record.Data = string(dataBytes)
+
+		// Insert into DB
+		id, err := h.mysql.InsertSimpleService(r.Context(), record)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store in database"})
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store in DB: " + err.Error()})
 			return nil
 		}
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{"message": "stored in DB", "id": id})
+		return nil
 	}
 
-	writeJSON(w, http.StatusAccepted, map[string]string{"status": "ok"})
+	// Otherwise, just acknowledge
+	writeJSON(w, http.StatusAccepted, map[string]string{"message": "sent to Kafka"})
 	return nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, body interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	if body != nil {
-		if err := json.NewEncoder(w).Encode(body); err != nil {
-			log.Errorf("writeJSON encode failed: %v", err)
-		}
+	if body == nil {
+		return
+	}
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		log.Errorf("writeJSON encode failed: %v", err)
 	}
 }

@@ -19,17 +19,21 @@ func NewMySQLHandler() *MySQLHandler {
 	}
 }
 
-// SimpleService represents a record in the simple_service table.
+// SimpleService represents a record to store the JSON payload as string in DB
+// Adjust fields as needed to match your DB schema
+// Here we store the entire JSON payload as a string in Data field
+// and an auto-increment ID
+
 type SimpleService struct {
-	ID      int64  `db:"id" json:"id"`
-	JsonData string `db:"json_data" json:"json_data"`
+	ID   int64  `db:"id" json:"id"`
+	Data string `db:"data" json:"data"`
 }
 
 // InsertSimpleService writes one simple_service record using parameterized values.
 func (h *MySQLHandler) InsertSimpleService(ctx context.Context, record *SimpleService) (int64, error) {
 	result, err := h.client.Exec(ctx,
-		"INSERT INTO simple_service (json_data) VALUES (?)",
-		record.JsonData,
+		"INSERT INTO simple_service (data) VALUES (?)",
+		record.Data,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("insert simple_service: %w", err)

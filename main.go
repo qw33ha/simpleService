@@ -7,6 +7,7 @@ import (
 
 	trpc "trpc.group/trpc-go/trpc-go"
 	trpclog "trpc.group/trpc-go/trpc-go/log"
+	trpcserver "trpc.group/trpc-go/trpc-go/server"
 	thttp "trpc.group/trpc-go/trpc-go/http"
 	trpckafka "trpc.group/trpc-go/trpc-database/kafka"
 	"github.com/qw33ha/simpleService/handler"
@@ -18,25 +19,31 @@ func main() {
 	if err := handler.RegisterKafkaConfigFromEnv(); err != nil {
 		trpclog.Fatalf("configure Kafka: %v", err)
 	}
-
-	mysqlHandler := handler.NewMySQLHandler()
-	kafkaProducer := handler.NewKafkaProducer()
-
+	initDatabaseClients()
 	s := trpc.NewServer()
-	httpHandler := handler.NewHTTPHandler(mysqlHandler, kafkaProducer)
+	registerKafkaConsumers(s)
+	httpHandler := handler.NewHTTPHandler()
 	httpHandler.Register()
+	thttp.RegisterNoProtocolService(s.Service("trpc.qw33ha.simpleService.http"))
+	serveTRPC(s)
+}
 
-	thttp.RegisterNoProtocolService(s.Service(serviceName))
+func initDatabaseClients() {
+	_ = handler.NewMySQLHandler()
+	// [LLM: inject the MySQL handler into the transport or business handlers that need persistence.]
+}
 
+func registerKafkaConsumers(s *trpcserver.Server) {
 	trpckafka.RegisterKafkaConsumerService(s, handler.NewKafkaConsumer())
+}
 
+func serveTRPC(s *trpcserver.Server) {
 	trpclog.Infof("starting %s trpc runtime", serviceName)
 	if err := s.Serve(); err != nil {
 		trpclog.Error(err)
 	}
 }
 
-// waitForShutdown is unused but can be used for graceful shutdown if needed
 func waitForShutdown() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

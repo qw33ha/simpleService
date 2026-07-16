@@ -43,6 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     env:
       IMAGE: ${{ needs.docker.outputs.image }}
       NAMESPACE: nl2service
@@ -50,18 +51,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: azure/setup-kubectl@v4
-      - name: Write kubeconfig
-        env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBE_CONFIG }}
-        run: |
-          if [ -z "$KUBECONFIG_CONTENT" ]; then
-            echo "::error::Required GitHub Actions Secret KUBE_CONFIG is missing or empty."
-            exit 1
-          fi
-          mkdir -p "$HOME/.kube"
-          printf '%s' "$KUBECONFIG_CONTENT" > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
-          kubectl config current-context
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          project_id: 14848-class
+      - uses: google-github-actions/get-gke-credentials@v3
+        with:
+          cluster_name: autopilot-cluster-1
+          location: us-central1
+          project_id: 14848-class
       - run: kubectl apply -f k8s/
       - run: kubectl set image deployment/$APP_NAME $APP_NAME=$IMAGE -n $NAMESPACE
       - run: kubectl rollout status deployment/$APP_NAME -n $NAMESPACE --timeout=180s
