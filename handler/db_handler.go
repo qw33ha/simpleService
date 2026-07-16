@@ -19,11 +19,7 @@ func NewMySQLHandler() *MySQLHandler {
 	}
 }
 
-// SimpleService represents a record to store the JSON payload as string in DB
-// Adjust fields as needed to match your DB schema
-// Here we store the entire JSON payload as a string in Data field
-// and an auto-increment ID
-
+// SimpleService represents a record to store the JSON payload as string in MySQL.
 type SimpleService struct {
 	ID   int64  `db:"id" json:"id"`
 	Data string `db:"data" json:"data"`

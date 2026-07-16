@@ -46,7 +46,7 @@ jobs:
       id-token: write
     env:
       IMAGE: ${{ needs.docker.outputs.image }}
-      NAMESPACE: nl2service
+      NAMESPACE: default
       APP_NAME: simple-service
     steps:
       - uses: actions/checkout@v6
@@ -55,12 +55,12 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          project_id: 14848-class
+          project_id: class-14848
       - uses: google-github-actions/get-gke-credentials@v3
         with:
           cluster_name: autopilot-cluster-1
           location: us-central1
-          project_id: 14848-class
+          project_id: class-14848
       - run: kubectl apply -f k8s/
       - run: kubectl set image deployment/$APP_NAME $APP_NAME=$IMAGE -n $NAMESPACE
       - run: kubectl rollout status deployment/$APP_NAME -n $NAMESPACE --timeout=180s
