@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simpleService
+  namespace: nl2service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simpleService
+  template:
+    metadata:
+      labels:
+        app: simpleService
+    spec:
+      containers:
+        - name: simpleService
+          image: ghcr.io/qw33ha/simpleService:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KAFKA_BROKERS
+              value: "kafka-ebfe790-nl2service.g.aivencloud.com:27099"
+            - name: KAFKA_TOPIC
+              value: "test-topic"
+            - name: KAFKA_GROUP
+              value: "nl2service-group"
+            - name: KAFKA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: no secret
+                  key: KAFKA_USERNAME
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: no secret
+                  key: KAFKA_PASSWORD
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: no secret
+                  key: MYSQL_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /is_healthy
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /is_healthy
+              port: 8080

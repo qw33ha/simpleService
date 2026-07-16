@@ -1,0 +1,62 @@
+name: build-and-deploy
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.22"
+      - run: go mod tidy
+      - run: go test ./...
+      - run: go build ./...
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.reference }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set lowercase container image
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA" >> "$GITHUB_ENV"
+      - name: Materialize Kafka CA certificate
+        run: printf '%s' "${{ secrets.KAFKA_CA_CERT }}" > ca.pem
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker build -t "$IMAGE" .
+      - run: docker push "$IMAGE"
+      - id: image
+        run: echo "reference=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      IMAGE: ${{ needs.docker.outputs.image }}
+      NAMESPACE: nl2service
+      APP_NAME: simpleService
+    steps:
+      - uses: actions/checkout@v6
+      - uses: azure/setup-kubectl@v4
+      - name: Write kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' "${{ secrets.KUBE_CONFIG }}" > "$HOME/.kube/config"
+      - run: kubectl apply -f k8s/
+      - run: kubectl set image deployment/$APP_NAME $APP_NAME=$IMAGE -n $NAMESPACE
+      - run: kubectl rollout status deployment/$APP_NAME -n $NAMESPACE --timeout=180s
+      - run: kubectl get svc simpleService-lb -n $NAMESPACE -o wide

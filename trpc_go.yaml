@@ -1,0 +1,42 @@
+service:
+  name: simpleService
+  module: github.com/qw33ha/simpleService
+
+global:
+  namespace: ${TRPC_NAMESPACE:-default}
+  env_name: ${TRPC_ENV:-dev}
+  container_name: ${POD_NAME}
+  local_ip: ${POD_IP}
+  admin_port: 10001
+  enable_set: N
+
+
+server:
+  app: simpleService
+  server: simpleService
+  bin_path: /usr/local/trpc/bin/
+  conf_path: /usr/local/trpc/conf/
+  data_path: /usr/local/trpc/data/
+  close_wait_time: 1000
+  max_close_wait_time: 2000
+  service:
+    - name: trpc.qw33ha.simpleService.http
+      ip: 0.0.0.0
+      port: 8080
+      network: tcp
+      protocol: http_no_protocol
+      timeout: 1000
+      idle_timeout: 10000
+    - name: trpc.kafka.consumer.service
+      address: kafka-consumer-config
+      protocol: kafka
+      timeout: 5000
+
+client:
+  service:
+    - name: trpc.qw33ha.simpleService.mysql
+      target: dsn://${MYSQL_USER:-simpleService}:${NO_SECRET}@tcp(35.255.215.86:3306)/test?parseTime=true&interpolateParams=true
+      timeout: 1000
+    - name: trpc.kafka.producer.service
+      target: kafka://kafka-producer-config
+      timeout: 5000
