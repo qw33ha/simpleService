@@ -46,7 +46,7 @@ jobs:
       id-token: write
     env:
       IMAGE: ${{ needs.docker.outputs.image }}
-      NAMESPACE: default
+      NAMESPACE: nl2service
       APP_NAME: simple-service
     steps:
       - uses: actions/checkout@v6
@@ -61,6 +61,7 @@ jobs:
           cluster_name: autopilot-cluster-1
           location: us-central1
           project_id: class-14848
+      - run: kubectl config set-context --current --namespace="$NAMESPACE"
       - run: kubectl apply -f k8s/
       - run: kubectl set image deployment/$APP_NAME $APP_NAME=$IMAGE -n $NAMESPACE
       - run: kubectl rollout status deployment/$APP_NAME -n $NAMESPACE --timeout=180s

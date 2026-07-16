@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: simple-service
-  namespace: default
+  namespace: nl2service
 spec:
   replicas: 1
   selector:
@@ -24,7 +24,7 @@ spec:
             - name: KAFKA_TOPIC
               value: "test-topic"
             - name: KAFKA_GROUP
-              value: "nl2service-group"
+              value: "group"
             - name: KAFKA_USERNAME
               valueFrom:
                 secretKeyRef:

@@ -19,7 +19,8 @@ func NewMySQLHandler() *MySQLHandler {
 	}
 }
 
-// SimpleService represents a record to store the JSON payload as string in MySQL.
+// SimpleService represents the JSON payload stored in MySQL when env=prod
+// We store the entire JSON payload as a JSON string in the Data field.
 type SimpleService struct {
 	ID   int64  `db:"id" json:"id"`
 	Data string `db:"data" json:"data"`
