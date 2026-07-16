@@ -16,10 +16,11 @@ type HTTPHandler struct {
 	mysql   *MySQLHandler
 }
 
-func NewHTTPHandler() *HTTPHandler {
+// NewHTTPHandlerWithDeps creates HTTPHandler with injected dependencies.
+func NewHTTPHandlerWithDeps(producer *KafkaProducer, mysql *MySQLHandler) *HTTPHandler {
 	return &HTTPHandler{
-		producer: NewKafkaProducer(),
-		mysql:   NewMySQLHandler(),
+		producer: producer,
+		mysql:   mysql,
 	}
 }
 
