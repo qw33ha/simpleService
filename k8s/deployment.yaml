@@ -28,17 +28,17 @@ spec:
             - name: KAFKA_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: no secret
+                  name: no-secret
                   key: KAFKA_USERNAME
             - name: KAFKA_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: no secret
+                  name: no-secret
                   key: KAFKA_PASSWORD
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: no secret
+                  name: no-secret
                   key: MYSQL_PASSWORD
           readinessProbe:
             httpGet:
