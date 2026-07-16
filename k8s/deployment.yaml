@@ -24,7 +24,7 @@ spec:
             - name: KAFKA_TOPIC
               value: "test-topic"
             - name: KAFKA_GROUP
-              value: "group"
+              value: "group2"
             - name: KAFKA_USERNAME
               valueFrom:
                 secretKeyRef:

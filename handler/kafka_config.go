@@ -17,7 +17,7 @@ const (
 func RegisterKafkaConfigFromEnv() error {
 	brokers := strings.Split(getenv("KAFKA_BROKERS", "kafka-ebfe790-nl2service.g.aivencloud.com:27099"), ",")
 	topic := getenv("KAFKA_TOPIC", "test-topic")
-	group := getenv("KAFKA_GROUP", "group")
+	group := getenv("KAFKA_GROUP", "group2")
 	username := strings.TrimSpace(os.Getenv("KAFKA_USERNAME"))
 	password := strings.TrimSpace(os.Getenv("KAFKA_PASSWORD"))
 	if brokers[0] == "" || topic == "" || group == "" || username == "" || password == "" {

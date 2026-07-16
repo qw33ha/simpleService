@@ -55,12 +55,12 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          project_id: that's the project name
+          project_id: class-14848
       - uses: google-github-actions/get-gke-credentials@v3
         with:
           cluster_name: autopilot-cluster-1
           location: us-central1
-          project_id: that's the project name
+          project_id: class-14848
       - run: kubectl config set-context --current --namespace="$NAMESPACE"
       - run: kubectl apply -f k8s/
       - run: kubectl set image deployment/$APP_NAME $APP_NAME=$IMAGE -n $NAMESPACE
